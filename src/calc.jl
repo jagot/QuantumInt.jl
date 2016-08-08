@@ -10,10 +10,13 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
                                           D::Operator,
                                           field::Field, ndt::Integer;
                                           cutoff::Real = 0,
+                                          mask_ratio::Real = 0,
                                           mode = :cpu,
                                           magnus_kwargs...)
     npartial = length(E)
     H₀,D,gst = hamiltonian(E, V, D, cutoff)
+
+    gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
 
     if mode == :gpu
         H₀ *= (1.0 + 0im)
@@ -31,6 +34,7 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
                   H₀, f, D, -im;
                   mode = mode,
                   magnus_kwargs...) do Ψ,i,τ
+                      gobble!(Ψ)
                       observe(Ψ,i,τ,field)
                   end
 
