@@ -1,5 +1,5 @@
 module QuantumInt
 
-# package code goes here
+include("operators.jl")
 
 end # module
