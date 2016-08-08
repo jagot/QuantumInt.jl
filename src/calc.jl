@@ -10,9 +10,15 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
                                           D::Operator,
                                           field::Field, ndt::Integer;
                                           cutoff::Real = 0,
+                                          mode = :cpu,
                                           magnus_kwargs...)
     npartial = length(E)
     H₀,D,gst = hamiltonian(E, V, D, cutoff)
+
+    if mode == :gpu
+        H₀ *= (1.0 + 0im)
+        D *= (1.0 + 0im)
+    end
 
     ψ₀ = zeros(Complex128, size(H₀,1))
     ψ₀[gst] = 1.0
@@ -24,6 +30,7 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
     Ψ = integrate(observe,
                   ψ₀, field.tmax*field.T, N,
                   H₀, f, D, -im;
+                  mode = mode,
                   magnus_kwargs...)
 
     diag(H₀), Ψ
