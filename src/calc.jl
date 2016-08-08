@@ -27,11 +27,12 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
 
     f = t -> field(t/field.T)
 
-    Ψ = integrate(observe,
-                  ψ₀, field.tmax*field.T, N,
+    Ψ = integrate(ψ₀, field.tmax*field.T, N,
                   H₀, f, D, -im;
                   mode = mode,
-                  magnus_kwargs...)
+                  magnus_kwargs...) do Ψ,i,τ
+                      observe(Ψ,i,τ,field)
+                  end
 
     diag(H₀), Ψ
 end
@@ -41,17 +42,17 @@ calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
                                  D::Operator,
                                  field::Field, ndt::Integer;
                                  kwargs...) =
-                                     calc((Ψ,i,τ) -> (),
+                                     calc((Ψ,i,τ,field) -> (),
                                           E, V, D,
                                           field, ndt;
                                           kwargs...)
 
-function calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
+function calc{M<:AbstractMatrix{Float64}}(observe::Function,
+                                          E::Vector{Vector{Float64}},
                                           V::Vector{M},
                                           D::Operator,
                                           field::Field, ndt::Integer,
-                                          observables::Vector{Symbol},
-                                          extra_observables::Function = (Ψ,i,τ,field) -> ();
+                                          observables::Vector{Symbol};
                                           kwargs...)
 
     N = ceil(Int, ndt*field.tmax)
@@ -64,13 +65,25 @@ function calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
 
     E, Ψ = calc(E, V, D,
                 field, ndt;
-                kwargs...) do Ψ,i,τ
+                kwargs...) do Ψ,i,τ,field
+                    observe(Ψ,i,τ,field)
                     for o in obss
                         o[2](Ψ,i,τ,field)
                     end
-                    extra_observables(Ψ,i,τ,field)
                 end
     E, Ψ, obss
 end
+
+calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
+                                 V::Vector{M},
+                                 D::Operator,
+                                 field::Field, ndt::Integer,
+                                 observables::Vector{Symbol};
+                                 kwargs...) =
+                                     calc((Ψ,i,τ,field) -> (),
+                                          E, V, D,
+                                          field, ndt,
+                                          observables;
+                                          kwargs...)
 
 export calc
