@@ -18,10 +18,8 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
 
     gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
 
-    if mode == :gpu
-        H₀ *= (1.0 + 0im)
-        D *= (1.0 + 0im)
-    end
+    H₀ *= (1.0 + 0im)
+    D *= (1.0 + 0im)
 
     ψ₀ = zeros(Complex128, size(H₀,1))
     ψ₀[gst] = 1.0
