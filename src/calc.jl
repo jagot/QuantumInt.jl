@@ -36,7 +36,7 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
                       observe(Ψ,i,τ,field)
                   end
 
-    Dict("E" => diag(H₀), "psi" => Ψ)
+    Dict("E" => real(diag(H₀)), "psi" => Ψ)
 end
 
 calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
