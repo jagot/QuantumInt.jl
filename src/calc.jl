@@ -36,7 +36,7 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
                       observe(Ψ,i,τ,field)
                   end
 
-    diag(H₀), Ψ
+    Dict("E" => diag(H₀), "psi" => Ψ)
 end
 
 calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
@@ -59,21 +59,22 @@ function calc{M<:AbstractMatrix{Float64}}(observe::Function,
 
     N = ceil(Int, ndt*field.tmax)
 
-    obss = []
+    obss = Dict{AbstractString,Any}()
     for o in observables
-        o in keys(observable_types) || error("Unknown observable, $(t)")
-        push!(obss, (o,observable_types[o](N)))
+        os = string(o)
+        os in keys(observable_types) || error("Unknown observable, $(os)")
+        obss[os] = observable_types[os](N)
     end
 
-    E, Ψ = calc(E, V, D,
+    results = calc(E, V, D,
                 field, ndt;
                 kwargs...) do Ψ,i,τ,field
                     observe(Ψ,i,τ,field)
-                    for o in obss
-                        o[2](Ψ,i,τ,field)
+                    for o in values(obss)
+                        o(Ψ,i,τ,field)
                     end
                 end
-    E, Ψ, obss
+    Dict([k => v.v for (k,v) in obss]..., results...)
 end
 
 calc{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},

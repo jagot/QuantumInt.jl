@@ -23,6 +23,6 @@ type FieldObservable <: AbstractObservable
 end
 value(obs::FieldObservable, Ψ, i, τ, field::Field) = field((i-1)*τ/field.T)
 
-const observable_types = Dict(:time => TimeObservable,
-                              :norm => NormObservable,
-                              :field => FieldObservable)
+const observable_types = Dict("time" => TimeObservable,
+                              "norm" => NormObservable,
+                              "field" => FieldObservable)
