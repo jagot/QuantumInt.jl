@@ -5,11 +5,12 @@ field-free Hamiltonian on diagonal form and transform all operators
 `O` to the field-free basis. Optionally, `cutoff` (in eV) limits the
 spectrum. Also returned is the index of the lowest, i.e., groundstate
 energy."""
-function hamiltonian{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
-                                                 V::Vector{M},
-                                                 O::Vector{Operator},
-                                                 cutoff::Real = 0,
-                                                 verbose::Bool = false)
+function hamiltonian{T<:AbstractFloat,
+                     M<:AbstractMatrix}(E::Vector{Vector{T}},
+                                        V::Vector{M},
+                                        O::Vector{Operator},
+                                        cutoff::Real = 0,
+                                        verbose::Bool = false)
     n = length(E)
     sel = [(1:length(E[j])) for j = 1:n]
 
@@ -33,7 +34,7 @@ function hamiltonian{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
 
     # Reduce the space
     E = vcat([E[j][sel[j]] for j = 1:n]...)
-    V = Matrix{Float64}[V[j][:,sel[j]] for j in 1:n]
+    V = Matrix{T}[V[j][:,sel[j]] for j in 1:n]
 
     # Field-free Hamiltonian in its eigenbasis
     H = sparse(Diagonal(E))
@@ -55,11 +56,12 @@ function hamiltonian{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
     H,O,gst
 end
 
-function hamiltonian{M<:AbstractMatrix{Float64}}(E::Vector{Vector{Float64}},
-                                                 V::Vector{M},
-                                                 O::Operator,
-                                                 cutoff::Real = 0,
-                                                 verbose::Bool = false)
+function hamiltonian{T<:AbstractFloat,
+                     M<:AbstractMatrix}(E::Vector{Vector{T}},
+                                        V::Vector{M},
+                                        O::Operator,
+                                        cutoff::Real = 0,
+                                        verbose::Bool = false)
     H,O,gst = hamiltonian(E, V, [O], cutoff, verbose)
     H,O[1],gst
 end
