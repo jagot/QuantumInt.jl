@@ -40,7 +40,7 @@ function calc{T<:AbstractFloat,
     Ψ = integrate(ψ₀, T(field.tmax*field.T), N,
                   H₀, f, D, -im;
                   mode = mode,
-                  verbose = true,
+                  verbose = verbose,
                   magnus_kwargs...) do Ψ,i,τ
                       gobble!(Ψ)
                       observe(Ψ,i,τ,field)
