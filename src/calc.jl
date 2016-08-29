@@ -13,9 +13,17 @@ function calc{T<:AbstractFloat,
                                  cutoff::Real = 0,
                                  mask_ratio::Real = 0,
                                  mode = :cpu,
+                                 verbose = true,
                                  magnus_kwargs...)
     npartial = length(E)
     H₀,D,gst = hamiltonian(E, V, D, cutoff)
+
+    if verbose
+        H = H₀ + D
+        @printf("Hamiltonian dimensions: %dx%d, sparsity: %03.3f%%\n",
+                size(H,1), size(H,2),
+                100length(nonzeros(H))/length(H))
+    end
 
     gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
 
@@ -32,6 +40,7 @@ function calc{T<:AbstractFloat,
     Ψ = integrate(ψ₀, T(field.tmax*field.T), N,
                   H₀, f, D, -im;
                   mode = mode,
+                  verbose = true,
                   magnus_kwargs...) do Ψ,i,τ
                       gobble!(Ψ)
                       observe(Ψ,i,τ,field)
