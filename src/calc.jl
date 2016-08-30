@@ -2,22 +2,17 @@ using Magnus
 using SimpleFields
 
 # Calculation in the dipole approximation, linear
-# polarization. Integration is done in the eigenbasis of the atomic
-# Hamiltonian.
-function calc{T<:AbstractFloat,
-              M<:AbstractMatrix}(observe::Function,
-                                 E::Vector{Vector{T}},
-                                 V::Vector{M},
-                                 D::Operator,
-                                 field::Field, ndt::Integer;
-                                 cutoff::Real = 0,
-                                 mask_ratio::Real = 0,
-                                 mode = :cpu,
-                                 verbose = true,
-                                 magnus_kwargs...)
-    npartial = length(E)
-    H₀,D,gst = hamiltonian(E, V, D, cutoff)
-
+# polarization.
+function calc{T<:AbstractFloat}(H₀::AbstractMatrix{T},
+                                D::AbstractMatrix,
+                                ψ₀::Vector{Complex{T}},
+                                field::Field, ndt::Integer;
+                                gobble!::Function = Ψ -> (),
+                                observe::Function = (Ψ,i,τ,field) -> (),
+                                observables::Vector{Symbol} = Symbol[],
+                                mode = :cpu,
+                                verbose = true,
+                                magnus_kwargs...)
     if verbose
         H = H₀ + D
         @printf("Hamiltonian dimensions: %dx%d, sparsity: %03.3f%%\n",
@@ -25,17 +20,19 @@ function calc{T<:AbstractFloat,
                 100(1.0-length(nonzeros(H))/length(H)))
     end
 
-    gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
-
     H₀ *= one(Complex{T})
     D *= one(Complex{T})
-
-    ψ₀ = zeros(Complex{T}, size(H₀,1))
-    ψ₀[gst] = 1.0
 
     N = ceil(Int, ndt*field.tmax)
 
     f = t -> field(t/field.T)
+
+    obss = Dict{AbstractString,Any}()
+    for o in observables
+        os = string(o)
+        os in keys(observable_types) || error("Unknown observable, $(os)")
+        obss[os] = observable_types[os]{typeof(field.tmax)}(N)
+    end
 
     results = integrate(ψ₀, T(field.tmax*field.T), N,
                         H₀, f, D, -im;
@@ -44,64 +41,45 @@ function calc{T<:AbstractFloat,
                         magnus_kwargs...) do Ψ,i,τ
                             gobble!(Ψ)
                             observe(Ψ,i,τ,field)
+                            for o in values(obss)
+                                o(Ψ,i,τ,field)
+                            end
                         end
 
     Dict("E" => real(diag(H₀)), "psi" => results[:V],
          "milliseconds" => results[:milliseconds],
-         "performance" => results[:performance])
+         "performance" => results[:performance],
+         [k => v.v for (k,v) in obss]...)
 end
 
-calc{T<:AbstractFloat,
-     M<:AbstractMatrix}(E::Vector{Vector{T}},
-                        V::Vector{M},
-                        D::Operator,
-                        field::Field, ndt::Integer;
-                        kwargs...) =
-                            calc((Ψ,i,τ,field) -> (),
-                                 E, V, D,
-                                 field, ndt;
-                                 kwargs...)
 
+# Calculation in the dipole approximation, linear
+# polarization. Integration is done in the eigenbasis of the atomic
+# Hamiltonian.
 function calc{T<:AbstractFloat,
-              M<:AbstractMatrix}(observe::Function,
-                                 E::Vector{Vector{T}},
+              M<:AbstractMatrix}(E::Vector{Vector{T}},
                                  V::Vector{M},
                                  D::Operator,
-                                 field::Field, ndt::Integer,
-                                 observables::Vector{Symbol};
-                                 kwargs...)
+                                 field::Field, ndt::Integer;
+                                 observe::Function = (Ψ,i,τ,field) -> (),
+                                 observables::Vector{Symbol} = Symbol[],
+                                 cutoff::Real = 0,
+                                 mask_ratio::Real = 0,
+                                 mode = :cpu,
+                                 verbose = true,
+                                 magnus_kwargs...)
+    npartial = length(E)
+    H₀,D,gst = hamiltonian(E, V, D, cutoff)
+    ψ₀ = zeros(Complex{T}, size(H₀,1))
+    ψ₀[gst] = 1.0
+    gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
 
-    N = ceil(Int, ndt*field.tmax)
-
-    obss = Dict{AbstractString,Any}()
-    for o in observables
-        os = string(o)
-        os in keys(observable_types) || error("Unknown observable, $(os)")
-        obss[os] = observable_types[os]{T}(N)
-    end
-
-    results = calc(E, V, D,
-                   field, ndt;
-                   kwargs...) do Ψ,i,τ,field
-                       observe(Ψ,i,τ,field)
-                       for o in values(obss)
-                           o(Ψ,i,τ,field)
-                       end
-                   end
-    Dict([k => v.v for (k,v) in obss]..., results...)
+    calc(H₀, D, ψ₀, field, ndt;
+         gobble! = gobble!,
+         observe = observe,
+         observables = observables,
+         mode = mode, verbose = verbose,
+         magnus_kwargs...)
 end
-
-calc{T<:AbstractFloat,
-     M<:AbstractMatrix}(E::Vector{Vector{T}},
-                        V::Vector{M},
-                        D::Operator,
-                        field::Field, ndt::Integer,
-                        observables::Vector{Symbol};
-                        kwargs...) =
-                            calc((Ψ,i,τ,field) -> (),
-                                 E, V, D,
-                                 field, ndt,
-                                 observables;
-                                 kwargs...)
 
 export calc
