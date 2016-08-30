@@ -22,7 +22,7 @@ function calc{T<:AbstractFloat,
         H = H₀ + D
         @printf("Hamiltonian dimensions: %dx%d, sparsity: %03.3f%%\n",
                 size(H,1), size(H,2),
-                100length(nonzeros(H))/length(H))
+                100(1.0-length(nonzeros(H))/length(H)))
     end
 
     gobble! = Egobbler(H₀, npartial, mask_ratio*cutoff, mode)
@@ -37,16 +37,18 @@ function calc{T<:AbstractFloat,
 
     f = t -> field(t/field.T)
 
-    Ψ = integrate(ψ₀, T(field.tmax*field.T), N,
-                  H₀, f, D, -im;
-                  mode = mode,
-                  verbose = verbose,
-                  magnus_kwargs...) do Ψ,i,τ
-                      gobble!(Ψ)
-                      observe(Ψ,i,τ,field)
-                  end
+    results = integrate(ψ₀, T(field.tmax*field.T), N,
+                        H₀, f, D, -im;
+                        mode = mode,
+                        verbose = verbose,
+                        magnus_kwargs...) do Ψ,i,τ
+                            gobble!(Ψ)
+                            observe(Ψ,i,τ,field)
+                        end
 
-    Dict("E" => real(diag(H₀)), "psi" => Ψ)
+    Dict("E" => real(diag(H₀)), "psi" => results[:V],
+         "milliseconds" => results[:milliseconds],
+         "performance" => results[:performance])
 end
 
 calc{T<:AbstractFloat,
